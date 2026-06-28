@@ -74,9 +74,11 @@ def ingest_task(
         }
 
     except Exception as exc:
-        # Celery will mark task as FAILURE and store the exception
-        self.update_state(
-            state="FAILURE",
-            meta={"step": "error", "pct": 0, "error": str(exc)},
-        )
+        # FIX: do NOT manually update_state(state="FAILURE", meta=<plain dict>).
+        # Doing so stored a meta dict without exc_type/exc_message, so when the UI
+        # later polled the job, AsyncResult.state raised
+        # "ValueError: Exception information must include the exception type"
+        # (KeyError: 'exc_type') and crashed the Job Queue tab.
+        # Just re-raise: Celery auto-marks the task FAILURE and stores the
+        # exception properly, which job_status.get_job_status() reads correctly.
         raise exc
